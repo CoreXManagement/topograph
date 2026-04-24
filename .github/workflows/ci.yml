@@ -2,13 +2,13 @@ name: CI/CD
 
 on:
   push:
-    branches:
-      - main
-      - dev
+    branches: [main, dev]
+    tags:     ["v*.*.*"]
   pull_request:
-    branches:
-      - main
-    types: [opened, synchronize, reopened]
+    branches: [main]
+    types:    [opened, synchronize, reopened]
+  release:
+    types: [published]
 
 permissions: {}
 
@@ -20,7 +20,7 @@ jobs:
   build:
     name: Build & Push
     runs-on: ubuntu-latest
-    if: github.event_name == 'push'
+    if: github.event_name != 'pull_request'
     permissions:
       contents: read
       packages: write
@@ -39,17 +39,29 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Metadata
+      - name: Versionsnummer ermitteln
+        id: version
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v* ]]; then
+            VERSION="${GITHUB_REF#refs/tags/v}"
+          else
+            VERSION="sha-$(git rev-parse --short HEAD)"
+          fi
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Image-Metadaten
         id: meta
         uses: docker/metadata-action@c299e40c65443455700f0fdfc63efafe5b349051 # v5
         with:
-          images: ghcr.io/corexmanagement/nexos-internal-docs
+          images: ghcr.io/corexmanagement/topograph
           tags: |
-            type=ref,event=branch
+            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v') }}
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=ref,event=branch,enable=${{ github.ref != 'refs/heads/main' }}
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/main' }}
 
-      - name: Build & push
+      - name: Build & Push
         uses: docker/build-push-action@10e90e3645eae34f1e60eeb005ba3a3d33f178e8 # v6
         with:
           context: .
@@ -57,14 +69,16 @@ jobs:
           push: true
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
-          cache-from: type=gha,scope=nexdocs
-          cache-to: type=gha,mode=max,scope=nexdocs
+          build-args: |
+            APP_VERSION=${{ steps.version.outputs.version }}
+          cache-from: type=gha,scope=topograph
+          cache-to:   type=gha,mode=max,scope=topograph
 
   deploy:
     name: Deploy
     runs-on: ubuntu-latest
     needs: build
-    if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+    if: github.ref == 'refs/heads/main' || startsWith(github.ref, 'refs/tags/v')
     continue-on-error: true
     permissions:
       contents: read
@@ -75,17 +89,17 @@ jobs:
         uses: appleboy/ssh-action@0ff4204d59e8e51228ff73bce53f80d53301dee2 # v1.2.5
         env:
           GHCR_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          GHCR_USER: ${{ github.actor }}
+          GHCR_USER:  ${{ github.actor }}
         with:
-          host: ${{ secrets.DEPLOY_SSH_HOST }}
+          host:     ${{ secrets.DEPLOY_SSH_HOST }}
           username: ${{ secrets.DEPLOY_SSH_USER }}
-          key: ${{ secrets.DEPLOY_SSH_KEY }}
-          port: ${{ secrets.DEPLOY_SSH_PORT || '22' }}
+          key:      ${{ secrets.DEPLOY_SSH_KEY }}
+          port:     ${{ secrets.DEPLOY_SSH_PORT || '22' }}
           envs: GHCR_TOKEN,GHCR_USER
           script: |
             set -e
             echo "$GHCR_TOKEN" | docker login ghcr.io -u "$GHCR_USER" --password-stdin
-            cd /opt/nexos-internal-docs
+            cd /opt/topograph
             docker compose pull
             docker compose up -d --remove-orphans
             docker system prune -f --filter "until=24h"

@@ -1,125 +1,135 @@
 # Topograph
 
-Visuelle Systemdokumentation und Topologie-Editor. Erstelle interaktive Diagramme für Netzwerke, Software-Abhängigkeiten, Workflows und Infrastruktur.
-
-![Topograph Screenshot](docs/screenshot.png)
+Visuelle Systemdokumentation und Topologie-Editor. Erstelle interaktive Diagramme für Netzwerke, Software-Abhängigkeiten, Workflows und Infrastruktur — vollständig self-hosted.
 
 ## Features
 
 - **Visueller Editor** — Drag & Drop, 12 Node-Typen (Server, Datenbank, Cloud, Mail, …)
+- **Rechtsklick-Menü** — Nodes hinzufügen, duplizieren, löschen ohne Toolbar
 - **Workflow-Knoten** — Start/Ende-Knoten mit eigenen Beschriftungen
-- **Custom Fields** — Eigene Felder pro Node, ein-/ausblendbar
+- **Custom Fields** — Eigene Felder pro Node, ein-/ausblendbar auf der Karte
 - **Notizen** — Mehrere Notizen pro Node mit Zeitstempel
-- **Verbindungs-Labels** — Doppelklick auf Linie → Label setzen (z.B. "HTTP", "VPN")
-- **Animierte Kanten** — Datenfluss & VPN-Verbindungen mit Animationen
-- **PDF-Export** — A4 Hoch-/Querformat, Dark/Hell/Blueprint-Theme
-- **LDAP / Active Directory** — SSO über AD-Sicherheitsgruppen
-- **Admin-Panel** — Nutzerverwaltung, Rollen, System-Updates
-- **Auto-Updates** — Admins werden über neue Versionen informiert, Ein-Klick-Update
-- **Eigenes Branding** — Logo, Name und Farben per Umgebungsvariable
+- **Verbindungs-Labels** — Doppelklick auf Linie → Label (z.B. "HTTP", "TCP 443")
+- **Animierte Kanten** — Datenfluss & VPN mit Fluss-Animation
+- **PDF-Export** — A4 Hoch-/Querformat, 3 Themes (Dark / Hell / Blueprint)
+- **LDAP / Active Directory** — SSO über AD-Sicherheitsgruppen (RODC-kompatibel)
+- **Admin-Panel** — Nutzerverwaltung, Rollen (Admin / Mitglied)
+- **Auto-Updates** — Admins sehen neue Versionen → Ein-Klick Docker-Update
+- **Linux-Updates** — Sicherheitsupdates mit CVE-Hinweis, direkt aus dem Browser
+- **Eigenes Branding** — App-Name, Logo und Primärfarbe per `.env`
 
 ---
 
-## Schnellstart (Docker)
+## Schnellstart
 
-### 1. Repository klonen
+**Keine Kompilierung nötig** — Image direkt von GitHub Container Registry (GHCR):
 
 ```bash
-git clone https://github.com/your-org/topograph.git
-cd topograph
+# 1. docker-compose.yml und .env herunterladen
+curl -O https://raw.githubusercontent.com/CoreXManagement/topograph/main/docker-compose.yml
+curl -O https://raw.githubusercontent.com/CoreXManagement/topograph/main/.env.example
+mv .env.example .env
 ```
 
-### 2. Konfiguration anlegen
-
 ```bash
-cp .env.example .env
-# .env anpassen: NEXTAUTH_SECRET, NEXTAUTH_URL, DB_PASSWORD
+# 2. .env anpassen (Pflichtfelder)
+nano .env
 ```
 
-Sicheren Secret generieren:
-```bash
-openssl rand -base64 32
+Mindestens diese drei Werte setzen:
+```env
+DB_PASSWORD=sicheres-datenbankpasswort
+NEXTAUTH_URL=https://topograph.example.com
+NEXTAUTH_SECRET=   # openssl rand -base64 32
 ```
 
-### 3. Starten
-
 ```bash
+# 3. Starten
 docker compose up -d
-```
 
-Topograph ist erreichbar unter: `http://localhost:3000`
-
-### 4. Ersten Administrator anlegen
-
-Beim ersten Start gibt es noch keine Nutzer. Lege manuell einen Admin an:
-
-```bash
-docker compose exec postgres psql -U topograph -d topograph -c "
-  INSERT INTO tg_users (email, name, password_hash, role)
-  VALUES (
-    'admin@example.com',
-    'Administrator',
-    '\$2b\$10\$...',   -- bcrypt-Hash deines Passworts
-    'ADMIN'
-  );
-"
-```
-
-Oder nutze das mitgelieferte Skript:
-```bash
+# 4. Ersten Administrator anlegen
 docker compose exec app node scripts/create-admin.js admin@example.com MeinPasswort
 ```
+
+Topograph läuft unter `http://localhost:3000` (oder deiner Domain).
+
+---
+
+## Image manuell ziehen
+
+```bash
+docker pull ghcr.io/corexmanagement/topograph:latest
+```
+
+> **Hinweis:** Falls das Package noch privat ist → GitHub → Packages → Topograph → Visibility → Public setzen.
 
 ---
 
 ## LDAP / Active Directory
 
-Topograph unterstützt SSO über LDAP. Konfiguriere die folgenden Variablen in `.env`:
+Eintragen in `.env`:
 
 ```env
-LDAP_URL=ldap://dc.example.com          # oder ldaps:// für verschlüsselt
-LDAP_DOMAIN=example.com                 # Domain-Suffix für UPN
-LDAP_BASE_DN=DC=example,DC=com          # Such-Basis
-LDAP_GROUP_DN=CN=Topograph,OU=Gruppen,DC=example,DC=com  # Zugangs-Gruppe
+LDAP_URL=ldap://dc.beispiel.de
+LDAP_DOMAIN=beispiel.de
+LDAP_BASE_DN=DC=beispiel,DC=de
+LDAP_GROUP_DN=CN=Topograph,OU=Gruppen,DC=beispiel,DC=de
 ```
 
-**Nur Mitglieder dieser AD-Gruppe** können sich anmelden.
+**Nur Mitglieder dieser AD-Gruppe** können sich anmelden. RODC (Read-Only DC) wird unterstützt.
 
-Für rekursive Gruppenprüfung (verschachtelte Gruppen) zusätzlich einen Service-Account angeben:
+Für verschachtelte Gruppen (rekursive Prüfung) einen Service-Account angeben:
 ```env
-LDAP_BIND_DN=CN=svc-topograph,OU=Dienste,DC=example,DC=com
+LDAP_BIND_DN=CN=svc-topograph,OU=Dienste,DC=beispiel,DC=de
 LDAP_BIND_PASSWORD=sicheres-passwort
 ```
-
-Der Service-Account benötigt nur **Lesezugriff** (z.B. auf einem RODC).
 
 ---
 
 ## Branding
 
-Topograph lässt sich vollständig anpassen:
-
 ```env
-APP_NAME=Mein Firmendok          # App-Name (Sidebar, Login)
-PRIMARY_COLOR=#6366f1            # Primärfarbe (Hex)
-LOGO_URL=https://example.com/logo.png   # Logo-URL (SVG oder PNG)
+APP_NAME=Stadtwerk Docs        # App-Name überall
+PRIMARY_COLOR=#0ea5e9          # Primärfarbe (Hex)
+LOGO_URL=https://example.com/logo.png
+```
+
+---
+
+## Updates
+
+### App-Update (Ein-Klick)
+Admins sehen automatisch einen Banner wenn eine neue Version auf GitHub erscheint.  
+Klick auf „Jetzt updaten" → zieht neues Image → Container startet neu.
+
+### Manuelles Update
+```bash
+docker compose pull && docker compose up -d
+```
+
+### Automatisches Update (optional — Watchtower)
+```bash
+docker run -d \
+  --name watchtower \
+  -v /var/run/docker.sock:/var/run/docker.sock \
+  containrrr/watchtower \
+  --interval 86400 \
+  topograph-app
 ```
 
 ---
 
 ## Backup
 
-Datenbank-Backup:
 ```bash
+# Backup erstellen
 docker compose exec postgres pg_dump -U topograph topograph > backup_$(date +%Y%m%d).sql
-```
 
-Wiederherstellung:
-```bash
+# Wiederherstellen
 docker compose exec -T postgres psql -U topograph topograph < backup_20240101.sql
 ```
 
-Automatisches tägliches Backup per Cron:
+Tägliches Backup per Cron:
 ```bash
 # crontab -e
 0 3 * * * cd /opt/topograph && docker compose exec -T postgres pg_dump -U topograph topograph > backups/backup_$(date +\%Y\%m\%d).sql
@@ -127,14 +137,24 @@ Automatisches tägliches Backup per Cron:
 
 ---
 
-## Updates
+## Alle Umgebungsvariablen
 
-Admins sehen automatisch einen Update-Banner, wenn eine neue Version verfügbar ist.  
-Alternativ manuell:
-
-```bash
-docker compose pull && docker compose up -d
-```
+| Variable | Pflicht | Beschreibung |
+|---|---|---|
+| `DATABASE_URL` | ✓ | PostgreSQL-Verbindung |
+| `DB_PASSWORD` | ✓ | DB-Passwort (für docker-compose intern) |
+| `NEXTAUTH_URL` | ✓ | Öffentliche URL der App |
+| `NEXTAUTH_SECRET` | ✓ | Sicherer Zufalls-String |
+| `LDAP_URL` | – | LDAP-Server (ldap:// oder ldaps://) |
+| `LDAP_DOMAIN` | – | Domain-Suffix |
+| `LDAP_BASE_DN` | – | Such-Basis im AD |
+| `LDAP_GROUP_DN` | – | AD-Gruppe mit Zugang |
+| `LDAP_BIND_DN` | – | Service-Account-DN |
+| `LDAP_BIND_PASSWORD` | – | Service-Account-Passwort |
+| `APP_NAME` | – | App-Name (Standard: `Topograph`) |
+| `PRIMARY_COLOR` | – | Primärfarbe als Hex |
+| `LOGO_URL` | – | URL zum eigenen Logo |
+| `APP_PORT` | – | Host-Port (Standard: `3000`) |
 
 ---
 
