@@ -1,7 +1,16 @@
+# Topograph — docker-compose.yml
+#
+# Funktioniert mit:
+#   - Easypanel, Coolify, Portainer (Reverse Proxy übernimmt Port-Routing)
+#   - Direktes Deployment hinter eigenem Nginx/Caddy
+#   - docker compose up -d (standalone, Port über Override freigeben)
+#
+# Standalone ohne Reverse Proxy → docker-compose.override.yml nutzen
+# (Beispiel liegt im Repo: docker-compose.override.example.yml)
+
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: topograph-db
     restart: unless-stopped
     environment:
       POSTGRES_USER:     topograph
@@ -9,6 +18,8 @@ services:
       POSTGRES_DB:       topograph
     volumes:
       - topograph-pgdata:/var/lib/postgresql/data
+    expose:
+      - "5432"
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U topograph"]
       interval: 5s
@@ -17,24 +28,23 @@ services:
 
   app:
     image: ghcr.io/corexmanagement/topograph:latest
-    container_name: topograph-app
     restart: unless-stopped
     pull_policy: always
-    ports:
-      - "127.0.0.1:${APP_PORT:-3000}:3000"
+    expose:
+      - "3000"
     environment:
-      DATABASE_URL:     "postgres://topograph:${DB_PASSWORD}@postgres:5432/topograph"
-      NEXTAUTH_URL:     "${NEXTAUTH_URL}"
-      NEXTAUTH_SECRET:  "${NEXTAUTH_SECRET}"
+      DATABASE_URL:    "postgres://topograph:${DB_PASSWORD}@postgres:5432/topograph"
+      NEXTAUTH_URL:    "${NEXTAUTH_URL}"
+      NEXTAUTH_SECRET: "${NEXTAUTH_SECRET}"
       UPDATE_REPO:      "CoreXManagement/topograph"
       DOCKER_IMAGE:     "ghcr.io/corexmanagement/topograph:latest"
       COMPOSE_DIR:      "/opt/topograph"
-      LDAP_URL:         "${LDAP_URL:-}"
-      LDAP_DOMAIN:      "${LDAP_DOMAIN:-}"
-      LDAP_BASE_DN:     "${LDAP_BASE_DN:-}"
-      LDAP_GROUP_DN:    "${LDAP_GROUP_DN:-}"
-      LDAP_BIND_DN:     "${LDAP_BIND_DN:-}"
-      LDAP_BIND_PASSWORD: "${LDAP_BIND_PASSWORD:-}"
+      LDAP_URL:             "${LDAP_URL:-}"
+      LDAP_DOMAIN:          "${LDAP_DOMAIN:-}"
+      LDAP_BASE_DN:         "${LDAP_BASE_DN:-}"
+      LDAP_GROUP_DN:        "${LDAP_GROUP_DN:-}"
+      LDAP_BIND_DN:         "${LDAP_BIND_DN:-}"
+      LDAP_BIND_PASSWORD:   "${LDAP_BIND_PASSWORD:-}"
       NEXT_PUBLIC_APP_NAME:      "${APP_NAME:-Topograph}"
       NEXT_PUBLIC_PRIMARY_COLOR: "${PRIMARY_COLOR:-}"
       NEXT_PUBLIC_LOGO_URL:      "${LOGO_URL:-}"

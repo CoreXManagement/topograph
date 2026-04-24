@@ -22,7 +22,7 @@ Visuelle Systemdokumentation und Topologie-Editor. Erstelle interaktive Diagramm
 
 ## Schnellstart
 
-**Keine Kompilierung nötig** — Image direkt von GitHub Container Registry (GHCR):
+**Keine Kompilierung nötig** — Image direkt von GHCR (`ghcr.io/corexmanagement/topograph:latest`).
 
 ```bash
 # 1. docker-compose.yml und .env herunterladen
@@ -51,7 +51,22 @@ docker compose up -d
 docker compose exec app node scripts/create-admin.js admin@example.com MeinPasswort
 ```
 
-Topograph läuft unter `http://localhost:3000` (oder deiner Domain).
+### Easypanel / Coolify / Portainer
+
+Die `docker-compose.yml` ist für Plattformen mit eigenem Reverse Proxy optimiert — **keine Ports oder Container-Namen hardcoded**. Einfach die Compose-Datei + `.env` einfügen, Plattform übernimmt das Routing.
+
+### Direktes Deployment ohne Reverse Proxy
+
+Port nach außen freigeben via Override:
+
+```bash
+curl -O https://raw.githubusercontent.com/CoreXManagement/topograph/main/docker-compose.override.example.yml
+mv docker-compose.override.example.yml docker-compose.override.yml
+# APP_PORT=3000 in .env setzen, dann:
+docker compose up -d
+```
+
+Docker Compose lädt `override.yml` automatisch zusätzlich zur Hauptdatei.
 
 ---
 

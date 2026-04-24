@@ -1,0 +1,8 @@
+# Standalone-Deployment ohne Reverse Proxy
+# Umbenennen zu docker-compose.override.yml und docker compose up -d ausführen
+# Docker Compose lädt override.yml automatisch zusätzlich zur docker-compose.yml
+
+services:
+  app:
+    ports:
+      - "127.0.0.1:${APP_PORT:-3000}:3000"
