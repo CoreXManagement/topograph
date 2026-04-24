@@ -25,7 +25,11 @@ export async function PATCH(req: Request) {
   await ensureSchema();
   const body = await req.json() as Record<string, string>;
 
-  const allowed = ["allow_registration", "app_name"];
+  const allowed = [
+    "allow_registration", "app_name",
+    "smtp_host", "smtp_port", "smtp_secure", "smtp_user", "smtp_password",
+    "smtp_from", "smtp_from_name", "email_welcome", "email_reset_expiry_min",
+  ];
   for (const [key, value] of Object.entries(body)) {
     if (allowed.includes(key)) {
       await setSetting(key, String(value));

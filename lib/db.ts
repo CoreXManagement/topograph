@@ -74,9 +74,29 @@ export async function initSchema() {
     );
 
     INSERT INTO tg_settings (key, value) VALUES
-      ('allow_registration', 'false'),
-      ('app_name',           'Topograph')
+      ('allow_registration',      'false'),
+      ('app_name',                'Topograph'),
+      ('smtp_host',               ''),
+      ('smtp_port',               '587'),
+      ('smtp_secure',             'false'),
+      ('smtp_user',               ''),
+      ('smtp_password',           ''),
+      ('smtp_from',               ''),
+      ('smtp_from_name',          'Topograph'),
+      ('email_welcome',           'false'),
+      ('email_reset_expiry_min',  '60')
     ON CONFLICT (key) DO NOTHING;
+
+    CREATE TABLE IF NOT EXISTS tg_password_resets (
+      id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+      email      TEXT NOT NULL,
+      token      TEXT UNIQUE NOT NULL,
+      expires_at TIMESTAMPTZ NOT NULL,
+      used       BOOLEAN DEFAULT FALSE,
+      created_at TIMESTAMPTZ DEFAULT NOW()
+    );
+    CREATE INDEX IF NOT EXISTS idx_pw_resets_token ON tg_password_resets(token);
+    CREATE INDEX IF NOT EXISTS idx_pw_resets_email ON tg_password_resets(email);
   `);
   await pool.query(`ALTER TABLE docs_nodes ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '[]';`);
 }

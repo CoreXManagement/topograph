@@ -66,7 +66,12 @@ export default function LoginPage() {
               <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} autoComplete="email" autoFocus />
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="password">Passwort</Label>
+              <div className="flex items-center justify-between">
+                <Label htmlFor="password">Passwort</Label>
+                <Link href="/forgot-password" className="text-xs text-zinc-600 hover:text-indigo-400 transition-colors">
+                  Passwort vergessen?
+                </Link>
+              </div>
               <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} autoComplete="current-password" />
             </div>
             {error && <p className="text-sm text-destructive">{error}</p>}
