@@ -66,6 +66,17 @@ export async function initSchema() {
     CREATE INDEX IF NOT EXISTS idx_docs_nodes_diagram ON docs_nodes(diagram_id);
     CREATE INDEX IF NOT EXISTS idx_docs_edges_diagram ON docs_edges(diagram_id);
     CREATE INDEX IF NOT EXISTS idx_docs_notes_node    ON docs_node_notes(node_id);
+
+    CREATE TABLE IF NOT EXISTS tg_settings (
+      key        TEXT PRIMARY KEY,
+      value      TEXT NOT NULL,
+      updated_at TIMESTAMPTZ DEFAULT NOW()
+    );
+
+    INSERT INTO tg_settings (key, value) VALUES
+      ('allow_registration', 'false'),
+      ('app_name',           'Topograph')
+    ON CONFLICT (key) DO NOTHING;
   `);
   await pool.query(`ALTER TABLE docs_nodes ADD COLUMN IF NOT EXISTS custom_fields JSONB DEFAULT '[]';`);
 }
@@ -73,4 +84,22 @@ export async function initSchema() {
 let initialized = false;
 export async function ensureSchema() {
   if (!initialized) { await initSchema(); initialized = true; }
+}
+
+export async function getSetting(key: string): Promise<string | null> {
+  const { rows } = await pool.query(`SELECT value FROM tg_settings WHERE key = $1`, [key]);
+  return rows[0]?.value ?? null;
+}
+
+export async function setSetting(key: string, value: string): Promise<void> {
+  await pool.query(
+    `INSERT INTO tg_settings (key, value, updated_at) VALUES ($1, $2, NOW())
+     ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value, updated_at = NOW()`,
+    [key, value]
+  );
+}
+
+export async function userCount(): Promise<number> {
+  const { rows } = await pool.query(`SELECT COUNT(*)::int AS n FROM tg_users`);
+  return rows[0]?.n ?? 0;
 }

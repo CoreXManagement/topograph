@@ -43,6 +43,9 @@ export default async function AppLayout({ children }: { children: React.ReactNod
               <Link href="/admin/users" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800/60 hover:text-zinc-100">
                 <ShieldCheck className="h-4 w-4" />Nutzer
               </Link>
+              <Link href="/admin/settings" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800/60 hover:text-zinc-100">
+                <Settings className="h-4 w-4" />Einstellungen
+              </Link>
               <Link href="/admin/system" className="flex items-center gap-2.5 rounded-lg px-3 py-2 text-sm text-zinc-400 transition-colors hover:bg-zinc-800/60 hover:text-zinc-100">
                 <Settings className="h-4 w-4" />System
               </Link>

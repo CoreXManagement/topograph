@@ -1,7 +1,8 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { signIn } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { Loader2, Network } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -10,12 +11,22 @@ import { Label } from "@/components/ui/label";
 
 export default function LoginPage() {
   const router = useRouter();
-  const [email, setEmail]       = useState("");
-  const [password, setPassword] = useState("");
-  const [loading, setLoading]   = useState(false);
-  const [error, setError]       = useState("");
+  const [email, setEmail]                     = useState("");
+  const [password, setPassword]               = useState("");
+  const [loading, setLoading]                 = useState(false);
+  const [error, setError]                     = useState("");
+  const [registrationAllowed, setRegAllowed]  = useState(false);
 
-  const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Topograph";
+  useEffect(() => {
+    // Prüfen ob Setup nötig
+    fetch("/api/setup").then((r) => r.json()).then((d) => {
+      if (d.required) router.replace("/setup");
+    }).catch(() => {});
+    // Prüfen ob Registrierung erlaubt
+    fetch("/api/register").then((r) => r.json()).then((d) => {
+      setRegAllowed(d.allowed === true);
+    }).catch(() => {});
+  }, [router]);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -24,7 +35,7 @@ export default function LoginPage() {
     try {
       const result = await signIn("credentials", { email: email.trim(), password, redirect: false });
       if (result?.error) {
-        setError("Ungültige Anmeldedaten.");
+        setError("Ungültige E-Mail oder falsches Passwort.");
       } else {
         router.push("/diagrams");
         router.refresh();
@@ -35,6 +46,8 @@ export default function LoginPage() {
       setLoading(false);
     }
   }
+
+  const appName = process.env.NEXT_PUBLIC_APP_NAME ?? "Topograph";
 
   return (
     <div className="flex min-h-screen items-center justify-center bg-background px-4">
@@ -48,11 +61,11 @@ export default function LoginPage() {
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="email">E-Mail</Label>
-              <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} autoComplete="email" />
+              <Input id="email" type="email" placeholder="name@example.com" value={email} onChange={(e) => setEmail(e.target.value)} disabled={loading} autoComplete="email" autoFocus />
             </div>
-            <div className="space-y-2">
+            <div className="space-y-1.5">
               <Label htmlFor="password">Passwort</Label>
               <Input id="password" type="password" placeholder="••••••••" value={password} onChange={(e) => setPassword(e.target.value)} disabled={loading} autoComplete="current-password" />
             </div>
@@ -61,6 +74,13 @@ export default function LoginPage() {
               {loading ? <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Anmelden…</> : "Anmelden"}
             </Button>
           </form>
+
+          {registrationAllowed && (
+            <p className="mt-4 text-center text-xs text-muted-foreground">
+              Noch kein Konto?{" "}
+              <Link href="/register" className="text-indigo-400 hover:underline">Jetzt registrieren</Link>
+            </p>
+          )}
         </CardContent>
       </Card>
     </div>
