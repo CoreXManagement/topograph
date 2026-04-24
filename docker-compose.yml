@@ -1,0 +1,50 @@
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: topograph-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: topograph
+      POSTGRES_PASSWORD: ${DB_PASSWORD:-changeme}
+      POSTGRES_DB: topograph
+    volumes:
+      - topograph-pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U topograph"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  app:
+    image: ghcr.io/your-org/topograph:latest
+    container_name: topograph-app
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:3000:3000"
+    environment:
+      DATABASE_URL: postgres://topograph:${DB_PASSWORD:-changeme}@postgres:5432/topograph
+      NEXTAUTH_URL: ${NEXTAUTH_URL:-http://localhost:3000}
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      APP_VERSION: "1.0.0"
+      UPDATE_REPO: your-org/topograph
+      DOCKER_IMAGE: ghcr.io/your-org/topograph:latest
+      COMPOSE_DIR: /opt/topograph
+      # LDAP (optional)
+      LDAP_URL: ${LDAP_URL:-}
+      LDAP_DOMAIN: ${LDAP_DOMAIN:-}
+      LDAP_BASE_DN: ${LDAP_BASE_DN:-}
+      LDAP_GROUP_DN: ${LDAP_GROUP_DN:-}
+      LDAP_BIND_DN: ${LDAP_BIND_DN:-}
+      LDAP_BIND_PASSWORD: ${LDAP_BIND_PASSWORD:-}
+      # Branding (optional)
+      NEXT_PUBLIC_APP_NAME: ${APP_NAME:-Topograph}
+      NEXT_PUBLIC_PRIMARY_COLOR: ${PRIMARY_COLOR:-}
+      NEXT_PUBLIC_LOGO_URL: ${LOGO_URL:-}
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  topograph-pgdata:
