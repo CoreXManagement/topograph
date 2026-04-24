@@ -84,7 +84,15 @@ export async function initSchema() {
       ('smtp_from',               ''),
       ('smtp_from_name',          'Topograph'),
       ('email_welcome',           'false'),
-      ('email_reset_expiry_min',  '60')
+      ('email_reset_expiry_min',  '60'),
+      ('ldap_enabled',            'false'),
+      ('ldap_url',                ''),
+      ('ldap_domain',             ''),
+      ('ldap_base_dn',            ''),
+      ('ldap_group_dn',           ''),
+      ('ldap_bind_dn',            ''),
+      ('ldap_bind_password',      ''),
+      ('ldap_ca_cert',            '')
     ON CONFLICT (key) DO NOTHING;
 
     CREATE TABLE IF NOT EXISTS tg_password_resets (

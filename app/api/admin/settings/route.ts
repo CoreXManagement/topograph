@@ -29,6 +29,8 @@ export async function PATCH(req: Request) {
     "allow_registration", "app_name",
     "smtp_host", "smtp_port", "smtp_secure", "smtp_user", "smtp_password",
     "smtp_from", "smtp_from_name", "email_welcome", "email_reset_expiry_min",
+    "ldap_enabled", "ldap_url", "ldap_domain", "ldap_base_dn",
+    "ldap_group_dn", "ldap_bind_dn", "ldap_bind_password", "ldap_ca_cert",
   ];
   for (const [key, value] of Object.entries(body)) {
     if (allowed.includes(key)) {

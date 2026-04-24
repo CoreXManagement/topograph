@@ -19,39 +19,37 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) return null;
         const email = credentials.email.toLowerCase().trim();
 
-        // 1. Lokaler Login
+        // 1. Lokaler Login (Passwort in DB)
         const { rows } = await pool.query<{
           id: string; email: string; name: string | null;
           password_hash: string | null; role: string; auth_source: string;
         }>(
-          `SELECT id, email, name, password_hash, role, auth_source FROM tg_users WHERE email = $1 LIMIT 1`,
+          `SELECT id, email, name, password_hash, role, auth_source
+           FROM tg_users WHERE email = $1 LIMIT 1`,
           [email]
         );
         const user = rows[0];
 
-        if (user && user.auth_source === "local" && user.password_hash) {
+        if (user?.auth_source === "local" && user.password_hash) {
           const valid = await bcrypt.compare(credentials.password, user.password_hash);
           if (!valid) return null;
           await pool.query(`UPDATE tg_users SET last_login = NOW() WHERE id = $1`, [user.id]);
           return { id: user.id, email: user.email, name: user.name ?? user.email, role: user.role };
         }
 
-        // 2. LDAP / AD-Login (falls konfiguriert)
-        if (process.env.LDAP_URL) {
-          const ldapUser = await ldapAuthenticate(email, credentials.password);
-          if (ldapUser) {
-            // Nutzer anlegen oder aktualisieren
-            const { rows: upserted } = await pool.query<{ id: string; role: string }>(
-              `INSERT INTO tg_users (email, name, role, auth_source)
-               VALUES ($1, $2, 'MEMBER', 'ldap')
-               ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, last_login = NOW()
-               RETURNING id, role`,
-              [ldapUser.email, ldapUser.name]
-            );
-            const u = upserted[0];
-            if (!u) return null;
-            return { id: u.id, email: ldapUser.email, name: ldapUser.name, role: u.role };
-          }
+        // 2. LDAP / AD — Konfiguration aus DB (Admin-UI)
+        const ldapUser = await ldapAuthenticate(email, credentials.password);
+        if (ldapUser) {
+          const { rows: upserted } = await pool.query<{ id: string; role: string }>(
+            `INSERT INTO tg_users (email, name, role, auth_source)
+             VALUES ($1, $2, 'MEMBER', 'ldap')
+             ON CONFLICT (email) DO UPDATE SET name = EXCLUDED.name, last_login = NOW()
+             RETURNING id, role`,
+            [ldapUser.email, ldapUser.name]
+          );
+          const u = upserted[0];
+          if (!u) return null;
+          return { id: u.id, email: ldapUser.email, name: ldapUser.name, role: u.role };
         }
 
         return null;

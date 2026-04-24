@@ -142,7 +142,7 @@ export default function DiagramsPage() {
             <div className="space-y-2">
               <Label>Name</Label>
               <Input
-                placeholder="z.B. CoreX Infrastruktur, Projektstruktur..."
+                placeholder="z.B. Netzwerk-Übersicht, Projektstruktur, Workflow..."
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
                 onKeyDown={(e) => { if (e.key === "Enter") handleCreate(); }}

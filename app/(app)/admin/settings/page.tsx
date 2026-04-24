@@ -1,6 +1,6 @@
 "use client";
 import { useState, useEffect } from "react";
-import { Loader2, RefreshCw, Save, Users, Globe, Mail, Eye, EyeOff, Send } from "lucide-react";
+import { Loader2, RefreshCw, Save, Users, Globe, Mail, Eye, EyeOff, Send, ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
@@ -11,9 +11,14 @@ function Toggle({ value, onChange }: { value: boolean; onChange: (v: boolean) =>
     <button
       type="button"
       onClick={() => onChange(!value)}
-      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors focus:outline-none ${value ? "bg-indigo-600" : "bg-zinc-700"}`}
+      aria-checked={value}
+      role="switch"
+      className={`relative h-6 w-11 shrink-0 rounded-full transition-colors duration-200 focus:outline-none focus-visible:ring-2 focus-visible:ring-indigo-500 ${value ? "bg-indigo-600" : "bg-zinc-700"}`}
     >
-      <span className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform ${value ? "translate-x-5" : "translate-x-0.5"}`} />
+      <span
+        style={{ transform: `translateX(${value ? "22px" : "2px"})` }}
+        className="absolute top-[2px] h-5 w-5 rounded-full bg-white shadow-sm transition-transform duration-200"
+      />
     </button>
   );
 }
@@ -50,6 +55,17 @@ export default function SettingsPage() {
   const [smtpFromName, setSmtpFromName] = useState("Topograph");
   const [resetExpiry, setResetExpiry] = useState("60");
 
+  // LDAP
+  const [ldapEnabled, setLdapEnabled] = useState(false);
+  const [ldapUrl, setLdapUrl]         = useState("");
+  const [ldapDomain, setLdapDomain]   = useState("");
+  const [ldapBaseDn, setLdapBaseDn]   = useState("");
+  const [ldapGroupDn, setLdapGroupDn] = useState("");
+  const [ldapBindDn, setLdapBindDn]   = useState("");
+  const [ldapBindPw, setLdapBindPw]   = useState("");
+  const [ldapCaCert, setLdapCaCert]   = useState("");
+  const [showLdapPw, setShowLdapPw]   = useState(false);
+
   async function load() {
     setLoading(true);
     const res = await fetch("/api/admin/settings");
@@ -66,6 +82,14 @@ export default function SettingsPage() {
       setSmtpFrom(d.smtp_from ?? "");
       setSmtpFromName(d.smtp_from_name ?? "Topograph");
       setResetExpiry(d.email_reset_expiry_min ?? "60");
+      setLdapEnabled(d.ldap_enabled === "true");
+      setLdapUrl(d.ldap_url ?? "");
+      setLdapDomain(d.ldap_domain ?? "");
+      setLdapBaseDn(d.ldap_base_dn ?? "");
+      setLdapGroupDn(d.ldap_group_dn ?? "");
+      setLdapBindDn(d.ldap_bind_dn ?? "");
+      setLdapBindPw(d.ldap_bind_password ?? "");
+      setLdapCaCert(d.ldap_ca_cert ?? "");
     }
     setLoading(false);
   }
@@ -89,6 +113,14 @@ export default function SettingsPage() {
         smtp_from: smtpFrom.trim(),
         smtp_from_name: smtpFromName.trim() || "Topograph",
         email_reset_expiry_min: resetExpiry || "60",
+        ldap_enabled: ldapEnabled ? "true" : "false",
+        ldap_url: ldapUrl.trim(),
+        ldap_domain: ldapDomain.trim(),
+        ldap_base_dn: ldapBaseDn.trim(),
+        ldap_group_dn: ldapGroupDn.trim(),
+        ldap_bind_dn: ldapBindDn.trim(),
+        ldap_bind_password: ldapBindPw,
+        ldap_ca_cert: ldapCaCert.trim(),
       }),
     });
     setSaving(false); setSaved(true);
@@ -255,6 +287,76 @@ export default function SettingsPage() {
           )}
         </div>
         <p className="text-[11px] text-zinc-600">Test-E-Mail wird an deine Admin-E-Mail gesendet. Zuerst speichern, dann testen.</p>
+      </div>
+
+      {/* LDAP / Active Directory */}
+      <div className="rounded-xl border border-zinc-800 bg-zinc-900/40 p-5 space-y-4">
+        <div className="flex items-center gap-2 border-b border-zinc-800/60 pb-3">
+          <ShieldCheck className="h-4 w-4 text-indigo-400" />
+          <span className="font-medium">LDAP / Active Directory</span>
+          <Badge variant="zinc" className="ml-auto text-[10px]">Optional</Badge>
+        </div>
+        <p className="text-xs text-muted-foreground">SSO über Active Directory. Nutzer melden sich mit ihrem AD-Passwort an.</p>
+
+        <Row
+          label="LDAP aktiviert"
+          desc="Aktiviert die AD-Anmeldung zusätzlich zur lokalen Anmeldung."
+          control={
+            <div className="flex items-center gap-2">
+              <Badge variant={ldapEnabled ? "green" : "zinc"}>{ldapEnabled ? "Aktiv" : "Aus"}</Badge>
+              <Toggle value={ldapEnabled} onChange={setLdapEnabled} />
+            </div>
+          }
+        />
+
+        {ldapEnabled && (
+          <div className="space-y-3 rounded-lg border border-zinc-700/40 bg-zinc-950/30 p-4">
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>LDAP-URL</Label>
+                <Input value={ldapUrl} onChange={(e) => setLdapUrl(e.target.value)} placeholder="ldap://dc.beispiel.de" className="font-mono text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Domain</Label>
+                <Input value={ldapDomain} onChange={(e) => setLdapDomain(e.target.value)} placeholder="beispiel.de" className="font-mono text-xs" />
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Basis-DN</Label>
+              <Input value={ldapBaseDn} onChange={(e) => setLdapBaseDn(e.target.value)} placeholder="DC=beispiel,DC=de" className="font-mono text-xs" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>Gruppen-DN <span className="text-zinc-600">(nur Mitglieder dieser Gruppe erhalten Zugang)</span></Label>
+              <Input value={ldapGroupDn} onChange={(e) => setLdapGroupDn(e.target.value)} placeholder="CN=Topograph,OU=Gruppen,DC=beispiel,DC=de" className="font-mono text-xs" />
+            </div>
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-1.5">
+                <Label>Service-Account-DN <span className="text-zinc-600">(optional)</span></Label>
+                <Input value={ldapBindDn} onChange={(e) => setLdapBindDn(e.target.value)} placeholder="CN=svc-app,OU=Dienste,DC=beispiel,DC=de" className="font-mono text-xs" />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Service-Account-Passwort</Label>
+                <div className="relative">
+                  <Input type={showLdapPw ? "text" : "password"} value={ldapBindPw} onChange={(e) => setLdapBindPw(e.target.value)} placeholder="••••••••" autoComplete="new-password" className="pr-9 font-mono text-xs" />
+                  <button type="button" onClick={() => setShowLdapPw(v => !v)} className="absolute right-2.5 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-zinc-300">
+                    {showLdapPw ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>CA-Zertifikat <span className="text-zinc-600">(PEM, für interne CAs / ldaps://)</span></Label>
+              <textarea
+                value={ldapCaCert}
+                onChange={(e) => setLdapCaCert(e.target.value)}
+                placeholder={"-----BEGIN CERTIFICATE-----\n...\n-----END CERTIFICATE-----"}
+                rows={4}
+                className="flex w-full rounded-md border border-input bg-transparent px-3 py-2 text-xs font-mono shadow-sm placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring resize-none"
+              />
+              <p className="text-[11px] text-zinc-600">Nur nötig wenn ldaps:// mit internem CA-Zertifikat verwendet wird.</p>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Save */}

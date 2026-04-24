@@ -1,5 +1,5 @@
 "use client";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Download, Loader2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
@@ -40,6 +40,13 @@ export function PdfExportDialog({ open, onClose, diagramTitle, rfInstance, conta
   const [theme, setTheme]       = useState<Theme>("dark");
   const [exporting, setExporting] = useState(false);
   const [error, setError]       = useState<string | null>(null);
+  const [appName, setAppName]   = useState("Topograph");
+
+  useEffect(() => {
+    fetch("/api/settings").then((r) => r.ok ? r.json() : null).then((d) => {
+      if (d?.app_name) setAppName(d.app_name);
+    }).catch(() => {});
+  }, []);
 
   async function handleExport() {
     if (!containerRef.current || !rfInstance) return;
@@ -53,8 +60,9 @@ export function PdfExportDialog({ open, onClose, diagramTitle, rfInstance, conta
       ]);
 
       // Fit all nodes into view before capturing
-      rfInstance.fitView({ padding: 0.08, duration: 0 });
-      await new Promise((r) => setTimeout(r, 500));
+      // Großzügigeres Padding verhindert Clipping an Node-Rändern
+      rfInstance.fitView({ padding: 0.15, duration: 0 });
+      await new Promise((r) => setTimeout(r, 600));
 
       const container = containerRef.current!;
       const themeCfg  = THEMES[theme];
@@ -115,7 +123,7 @@ export function PdfExportDialog({ open, onClose, diagramTitle, rfInstance, conta
       pdf.setFont("helvetica", "normal");
       pdf.setFontSize(7);
       pdf.setTextColor(...mutedColor);
-      pdf.text("CoreX Internal Docs", margin.side, footerY);
+      pdf.text(appName, margin.side, footerY);
       pdf.text(
         new Date().toLocaleDateString("de-DE", { day: "2-digit", month: "2-digit", year: "numeric" }),
         dim.w - margin.side,
