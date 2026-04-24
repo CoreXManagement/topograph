@@ -5,7 +5,7 @@ import { exec } from "child_process";
 import { promisify } from "util";
 
 const execAsync = promisify(exec);
-const IMAGE = process.env.DOCKER_IMAGE ?? "ghcr.io/your-org/topograph:latest";
+const IMAGE = process.env.DOCKER_IMAGE ?? "ghcr.io/corexmanagement/topograph:latest";
 const COMPOSE_DIR = process.env.COMPOSE_DIR ?? "/opt/topograph";
 
 export async function POST() {
