@@ -22,7 +22,7 @@ jobs:
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
     permissions:
-      contents: read
+      contents: write   # für GitHub Release erstellen
       packages: write
 
     steps:
@@ -73,6 +73,45 @@ jobs:
             APP_VERSION=${{ steps.version.outputs.version }}
           cache-from: type=gha,scope=topograph
           cache-to:   type=gha,mode=max,scope=topograph
+
+      # GitHub Release erstellen (nur auf main, nicht bei PRs/dev-branches)
+      - name: GitHub Release erstellen
+        if: github.ref == 'refs/heads/main'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SHA="${{ steps.version.outputs.version }}"
+          DATE=$(date -u +"%d.%m.%Y %H:%M UTC")
+
+          # Letzten Release-Tag finden für Changelog-Bereich
+          LAST_TAG=$(git tag --sort=-creatordate | head -1)
+
+          # Commit-Liste seit letztem Tag (oder letzte 20 Commits)
+          if [ -n "$LAST_TAG" ]; then
+            RAW_LOG=$(git log "${LAST_TAG}..HEAD" --format="- %s" 2>/dev/null)
+          else
+            RAW_LOG=$(git log --format="- %s" -20)
+          fi
+
+          # Commits nach Typ gruppieren
+          FEATS=$(echo "$RAW_LOG" | grep -E "^- feat(\(.+\))?:" || true)
+          FIXES=$(echo "$RAW_LOG" | grep -E "^- fix(\(.+\))?:" || true)
+          CI=$(echo "$RAW_LOG" | grep -E "^- ci(\(.+\))?:" || true)
+          OTHERS=$(echo "$RAW_LOG" | grep -vE "^- (feat|fix|ci)(\(.+\))?:" || true)
+
+          BODY="## Änderungen in \`${SHA}\`"
+          [ -n "$FEATS" ]  && BODY="${BODY}\n\n### ✨ Neu\n${FEATS}"
+          [ -n "$FIXES" ]  && BODY="${BODY}\n\n### 🐛 Behoben\n${FIXES}"
+          [ -n "$CI" ]     && BODY="${BODY}\n\n### ⚙️ CI / Infra\n${CI}"
+          [ -n "$OTHERS" ] && BODY="${BODY}\n\n### 🔧 Sonstiges\n${OTHERS}"
+          BODY="${BODY}\n\n---\n_Build: ${DATE}_"
+
+          # Release erstellen (überschreibt falls SHA-Tag schon existiert)
+          gh release delete "${SHA}" --yes 2>/dev/null || true
+          gh release create "${SHA}" \
+            --title "${DATE} · ${SHA}" \
+            --notes "$(printf '%b' "$BODY")" \
+            --latest
 
   deploy:
     name: Deploy
